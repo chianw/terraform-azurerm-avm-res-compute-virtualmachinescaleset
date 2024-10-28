@@ -14,6 +14,8 @@ This example demonstrates a standard deployment of VMSS aligned with reliability
 - availability zones
 
 ```hcl
+data "azurerm_client_config" "current" {}
+
 # This ensures we have unique CAF compliant names for our resources.
 module "naming" {
   source  = "Azure/naming/azurerm"
@@ -140,6 +142,54 @@ resource "tls_private_key" "example_ssh" {
   rsa_bits  = 4096
 }
 
+# create key vault to store SSH private key, provide deployment user RBAC access to Secrets and Keys
+module "avm_res_keyvault_vault" {
+  source                      = "Azure/avm-res-keyvault-vault/azurerm"
+  version                     = "=0.7.1"
+  tenant_id                   = data.azurerm_client_config.current.tenant_id
+  name                        = module.naming.key_vault.name_unique
+  resource_group_name         = azurerm_resource_group.this.name
+  location                    = azurerm_resource_group.this.location
+  enabled_for_disk_encryption = true
+  network_acls = {
+    default_action = "Allow"
+    bypass         = "AzureServices"
+  }
+
+  role_assignments = {
+    deployment_user_secrets = { #give the deployment user access to secrets
+      role_definition_id_or_name = "Key Vault Secrets Officer"
+      principal_id               = data.azurerm_client_config.current.object_id
+    }
+    deployment_user_keys = { #give the deployment user access to keys
+      role_definition_id_or_name = "Key Vault Crypto Officer"
+      principal_id               = data.azurerm_client_config.current.object_id
+    }
+  }
+
+  wait_for_rbac_before_key_operations = {
+    create = "60s"
+  }
+
+  wait_for_rbac_before_secret_operations = {
+    create = "60s"
+  }
+
+  tags = local.tags
+
+}
+
+resource "azurerm_key_vault_secret" "admin_ssh_key" {
+  key_vault_id = module.avm_res_keyvault_vault.resource_id
+  name         = "azureuser-ssh-private-key"
+  value        = tls_private_key.example_ssh.private_key_pem
+
+  depends_on = [
+    module.avm_res_keyvault_vault
+  ]
+}
+
+
 # This is the module call
 module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   source = "../../"
@@ -225,6 +275,7 @@ The following requirements are needed by this module:
 
 The following resources are used by this module:
 
+- [azurerm_key_vault_secret.admin_ssh_key](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/key_vault_secret) (resource)
 - [azurerm_nat_gateway.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway) (resource)
 - [azurerm_nat_gateway_public_ip_association.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/nat_gateway_public_ip_association) (resource)
 - [azurerm_network_security_group.nic](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_group) (resource)
@@ -238,6 +289,7 @@ The following resources are used by this module:
 - [random_integer.region_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 - [random_integer.zone_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 - [tls_private_key.example_ssh](https://registry.terraform.io/providers/hashicorp/tls/4.0.6/docs/resources/private_key) (resource)
+- [azurerm_client_config.current](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/client_config) (data source)
 
 <!-- markdownlint-disable MD013 -->
 ## Required Inputs
@@ -289,6 +341,12 @@ Description: The name of the Virtual Machine Scale Set.
 ## Modules
 
 The following Modules are called:
+
+### <a name="module_avm_res_keyvault_vault"></a> [avm\_res\_keyvault\_vault](#module\_avm\_res\_keyvault\_vault)
+
+Source: Azure/avm-res-keyvault-vault/azurerm
+
+Version: =0.7.1
 
 ### <a name="module_get_valid_sku_for_deployment_region"></a> [get\_valid\_sku\_for\_deployment\_region](#module\_get\_valid\_sku\_for\_deployment\_region)
 

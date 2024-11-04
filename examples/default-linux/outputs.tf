@@ -28,3 +28,8 @@ output "virtual_machine_scale_set_name" {
   description = "The name of the Virtual Machine Scale Set."
   value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.resource_name
 }
+
+output "autoscale_setting_id" {
+  description = "The ID of the Autoscale Setting."
+  value       = module.terraform_azurerm_avm_res_compute_virtualmachinescaleset.autoscale_setting_id
+}

@@ -789,3 +789,83 @@ Specifies a list of Availability Zones in which this Orchestrated Virtual Machin
 > Note: Due to a limitation of the Azure API at this time only one Availability Zone can be defined.
 EOT
 }
+
+
+variable "autoscale_setting_name" {
+  type        = string
+  default     = null
+  description = <<-EOT
+The name of the AutoScale Setting. Changing this forces a new resource to be created.
+EOT  
+}
+
+variable "autoscale_enabled" {
+  type    = bool
+  default = false
+}
+
+variable "autoscale_setting" {
+  type = object({
+    profiles = list(object({
+      name = string
+      capacity = object({
+        default = number
+        maximum = number
+        minimum = number
+      })
+      rules = list(object({
+        metric_trigger = object({
+          metric_name = string
+          # metric_resource_id = string
+          operator         = string
+          statistic        = string
+          time_aggregation = string
+          time_grain       = string
+          time_window      = string
+          threshold        = number
+          metric_namespace = optional(string)
+          dimensions = optional(list(object({
+            name     = string
+            operator = string
+            values   = list(string)
+          })))
+          divide_by_instance_count = optional(bool)
+        })
+        scale_action = object({
+          cooldown  = string
+          direction = string
+          type      = string
+          value     = string
+        })
+      }))
+      fixed_date = optional(object({
+        end      = string
+        start    = string
+        timezone = string
+      }))
+      recurrence = optional(object({
+        days     = list(string)
+        hours    = list(number)
+        minutes  = list(number)
+        timezone = string
+      }))
+    }))
+    notification = optional(object({
+      email = optional(object({
+        custom_emails                         = optional(list(string))
+        send_to_subscription_administrator    = optional(bool, false)
+        send_to_subscription_co_administrator = optional(bool, false)
+      }))
+      webhook = optional(object({
+        properties  = optional(map(any))
+        service_uri = string
+      }))
+    }))
+    predictive = optional(object({
+      scale_mode      = string
+      look_ahead_time = optional(string)
+    }))
+  })
+  default = null
+
+}

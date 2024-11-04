@@ -235,6 +235,70 @@ module "terraform_azurerm_avm_res_compute_virtualmachinescaleset" {
   #  name = "VMSSNoDelete"
   #  kind = "CanNotDelete"
   #}
+
+  autoscale_enabled      = true
+  autoscale_setting_name = "testautoscale"
+  autoscale_setting = {
+    profiles = [
+      {
+        name = "profile1"
+        capacity = {
+          default = 2
+          minimum = 2
+          maximum = 4
+        }
+        rules = [
+          {
+            metric_trigger = {
+              metric_name      = "Percentage CPU"
+              operator         = "LessThan"
+              statistic        = "Average"
+              threshold        = 10
+              time_aggregation = "Average"
+              time_grain       = "PT1M"
+              time_window      = "PT2M"
+            }
+            scale_action = {
+              cooldown  = "PT1M"
+              direction = "Decrease"
+              type      = "ChangeCount"
+              value     = "1"
+            }
+          },
+          {
+            metric_trigger = {
+              metric_name      = "Percentage CPU"
+              operator         = "GreaterThan"
+              statistic        = "Average"
+              threshold        = 90
+              time_aggregation = "Average"
+              time_grain       = "PT1M"
+              time_window      = "PT2M"
+            }
+            scale_action = {
+              cooldown  = "PT1M"
+              direction = "Increase"
+              type      = "ChangeCount"
+              value     = "1"
+            }
+          }
+        ]
+      }
+    ]
+    notification = {
+      email = {
+        custom_emails                         = ["abc@testing.com"]
+        send_to_subscription_administrator    = false
+        send_to_subscription_co_administrator = false
+      }
+      webhook = {
+        service_uri = "https://webhooktesting.com"
+      }
+    }
+  }
+
+
+
   depends_on = [azurerm_subnet_nat_gateway_association.this]
 }
 
